@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import api, { apiFetch } from "../utils/api";
+import api, { apiFetch, normalizeApiPath } from "../utils/api";
 import { getRole } from "../utils/auth";
 
 export default function BookingsAdmin() {
@@ -146,7 +146,7 @@ export default function BookingsAdmin() {
         if (to) params.set("to", to);
 
         try {
-            const response = await api.get("/api/bookings/export/excel", {
+            const response = await api.get(normalizeApiPath("/api/bookings/export/excel"), {
                 params,
                 responseType: "blob",
                 headers: {

@@ -8,11 +8,11 @@ const MAX_ATTEMPTS = 3;
 const BLOCK_MS = 15 * 60 * 1000;
 
 async function verifyCaptcha(token, ip) {
-  const DEFAULT_SECRET = "1898a4f4-6000-49a4-87cc-a456c0dcf766";
-  const secret = process.env.HCAPTCHA_SECRET || process.env.HCAPTCHA_KEY || "";
+  const DEFAULT_SECRET =
+    process.env.HCAPTCHA_DEFAULT_SECRET ||
+    "0x0000000000000000000000000000000000000000";
+  const secret = process.env.HCAPTCHA_SECRET || process.env.HCAPTCHA_KEY || DEFAULT_SECRET;
   const captchaDisabled =
-    !secret ||
-    secret === DEFAULT_SECRET ||
     String(process.env.HCAPTCHA_BYPASS || "").toLowerCase() === "true";
 
   if (captchaDisabled) return true;
