@@ -21,6 +21,7 @@ import Shift from "./models/Shift.js";
 import Content from "./models/Content.js";
 import galleryRoutes from "./routes/gallery.js";
 import { uploadDir as uploadDirName } from "./utils/upload.js";
+import configRoutes from "./routes/config.js";
 
 dotenv.config();
 
@@ -71,6 +72,7 @@ app.use("/api/bookings", bookingsRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/team", teamRoutes);
 app.use("/api/gallery", galleryRoutes);
+app.use("/api/config", configRoutes);
 
 app.get("/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
