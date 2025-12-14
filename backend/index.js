@@ -22,6 +22,7 @@ import Content from "./models/Content.js";
 import galleryRoutes from "./routes/gallery.js";
 import { uploadDir as uploadDirName } from "./utils/upload.js";
 import configRoutes from "./routes/config.js";
+import { DEFAULT_CONTACTS } from "./utils/defaultContacts.js";
 
 dotenv.config();
 
@@ -158,16 +159,17 @@ async function start() {
             },
             about: baseAbout,
             experience: baseAbout,
-            itDirections: [],
-            bookingForm: {
-                title: "Анкета на бронирование путёвки в лагерь «Новатор»",
-                subtitle: "Выберите подходящую смену и заполните форму",
-                consentText:
-                    "Я согласен(на) на обработку персональных данных в соответствии с Федеральным законом №152-ФЗ",
-            },
-        });
-        console.log("✅ Default home content seeded");
-    }
+        itDirections: [],
+        bookingForm: {
+            title: "Анкета на бронирование путёвки в лагерь «Новатор»",
+            subtitle: "Выберите подходящую смену и заполните форму",
+            consentText:
+                "Я согласен(на) на обработку персональных данных в соответствии с Федеральным законом №152-ФЗ",
+        },
+        contacts: DEFAULT_CONTACTS,
+    });
+    console.log("✅ Default home content seeded");
+}
 
     server = app
         .listen(PORT, () => console.log(`🚀 Backend on http://localhost:${PORT}`))

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import api from "../utils/api";
+import { mergeContacts } from "../utils/contactDefaults";
 
 export default function Contacts() {
     const [content, setContent] = useState(null);
@@ -14,7 +15,24 @@ export default function Contacts() {
     const yandexApiKey = import.meta.env.VITE_YMAPS_KEY || "47af1c93-55ca-429b-b161-acf6ee1fb9de";
 
     useEffect(() => {
-        api.get("/api/content/home").then(res => setContent(res.data.contacts));
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const res = await api.get("/api/content/contacts");
+                if (!cancelled) {
+                    setContent(mergeContacts(res.data?.contacts));
+                }
+            } catch (_) {
+                if (!cancelled) {
+                    setContent(mergeContacts());
+                }
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     useEffect(() => {

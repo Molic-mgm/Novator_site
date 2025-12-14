@@ -13,12 +13,16 @@ export default function AdminLogin() {
     const [captchaReady, setCaptchaReady] = useState(false);
     const [isLocalhost, setIsLocalhost] = useState(false);
     const [siteKey, setSiteKey] = useState("");
+    const [configEnablesCaptcha, setConfigEnablesCaptcha] = useState(null);
     const captchaRef = useRef(null);
     const widgetId = useRef(null);
 
     const envSiteKey = import.meta.env.VITE_HCAPTCHA_SITEKEY || "";
     const resolvedSiteKey = siteKey || envSiteKey;
-    const captchaEnabled = Boolean(resolvedSiteKey) && !isLocalhost;
+    const captchaEnabled =
+        Boolean(resolvedSiteKey) &&
+        !isLocalhost &&
+        (configEnablesCaptcha === null ? true : configEnablesCaptcha);
 
     useEffect(() => {
         const host = window.location.hostname;
@@ -31,12 +35,22 @@ export default function AdminLogin() {
         const loadCaptchaConfig = async () => {
             try {
                 const config = await apiFetch("/api/config/public");
-                if (!cancelled && config?.hcaptchaSiteKey) {
-                    setSiteKey(config.hcaptchaSiteKey);
+                if (!cancelled) {
+                    if (config?.hcaptchaSiteKey) {
+                        setSiteKey(config.hcaptchaSiteKey);
+                    }
+                    if (typeof config?.hcaptchaEnabled === "boolean") {
+                        setConfigEnablesCaptcha(config.hcaptchaEnabled);
+                    }
                 }
             } catch (e) {
-                if (!cancelled && !envSiteKey) {
-                    setError("Не удалось загрузить ключи капчи, попробуйте позже");
+                if (!cancelled) {
+                    if (!envSiteKey) {
+                        setConfigEnablesCaptcha(false);
+                    }
+                    if (!envSiteKey) {
+                        setError("Не удалось загрузить ключи капчи, попробуйте позже");
+                    }
                 }
             }
         };
@@ -175,11 +189,17 @@ export default function AdminLogin() {
                         className="w-full rounded-lg bg-white/10 border border-white/20 px-4 py-3 text-sm outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
                     />
 
-                    <div className="bg-white/5 border border-white/10 rounded-lg px-3 py-2">
-                        <div className="text-xs uppercase tracking-wide text-white/70 font-semibold mb-2">hCaptcha</div>
-                        <div ref={captchaRef} className="flex justify-center" />
-                        {!captchaReady && <div className="text-white/60 text-sm mt-2">Загрузка капчи...</div>}
-                    </div>
+                    {captchaEnabled ? (
+                        <div className="bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                            <div className="text-xs uppercase tracking-wide text-white/70 font-semibold mb-2">hCaptcha</div>
+                            <div ref={captchaRef} className="flex justify-center" />
+                            {!captchaReady && <div className="text-white/60 text-sm mt-2">Загрузка капчи...</div>}
+                        </div>
+                    ) : (
+                        <div className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white/70 text-sm">
+                            Капча временно отключена. Вы можете войти без неё.
+                        </div>
+                    )}
 
                     <button
                         type="submit"
