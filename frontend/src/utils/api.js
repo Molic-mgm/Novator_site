@@ -8,7 +8,10 @@ import axios from "axios";
 const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : "";
 const fallbackApi = runtimeOrigin ? `${runtimeOrigin}/api` : "/api";
 
-export const API_BASE_RAW = (import.meta.env.VITE_API_URL || fallbackApi).replace(/\/$/, "");
+const runtimeConfig = typeof window !== "undefined" ? window.__APP_CONFIG__ || window.__ENV_CONFIG__ : null;
+const runtimeApiUrl = runtimeConfig?.apiUrl || runtimeConfig?.API_URL;
+
+export const API_BASE_RAW = (import.meta.env.VITE_API_URL || runtimeApiUrl || fallbackApi).replace(/\/$/, "");
 export const API_BASE_URL = API_BASE_RAW || fallbackApi;
 
 const api = axios.create({
