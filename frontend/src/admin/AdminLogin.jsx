@@ -12,16 +12,41 @@ export default function AdminLogin() {
     const [captchaToken, setCaptchaToken] = useState("");
     const [captchaReady, setCaptchaReady] = useState(false);
     const [isLocalhost, setIsLocalhost] = useState(false);
+    const [siteKey, setSiteKey] = useState("");
     const captchaRef = useRef(null);
     const widgetId = useRef(null);
 
-    const siteKey = import.meta.env.VITE_HCAPTCHA_SITEKEY || "1898a4f4-6000-49a4-87cc-a456c0dcf766";
-    const captchaEnabled = Boolean(siteKey) && !isLocalhost;
+    const envSiteKey = import.meta.env.VITE_HCAPTCHA_SITEKEY || "";
+    const resolvedSiteKey = siteKey || envSiteKey;
+    const captchaEnabled = Boolean(resolvedSiteKey) && !isLocalhost;
 
     useEffect(() => {
         const host = window.location.hostname;
         setIsLocalhost(host === "localhost" || host === "127.0.0.1");
     }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadCaptchaConfig = async () => {
+            try {
+                const config = await apiFetch("/api/config/public");
+                if (!cancelled && config?.hcaptchaSiteKey) {
+                    setSiteKey(config.hcaptchaSiteKey);
+                }
+            } catch (e) {
+                if (!cancelled && !envSiteKey) {
+                    setError("Не удалось загрузить ключи капчи, попробуйте позже");
+                }
+            }
+        };
+
+        loadCaptchaConfig();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [envSiteKey]);
 
     useEffect(() => {
         if (!captchaEnabled) return;
@@ -30,21 +55,51 @@ export default function AdminLogin() {
             setCaptchaReady(true);
             return;
         }
-        const script = document.createElement("script");
-        script.src = "https://js.hcaptcha.com/1/api.js?render=explicit";
-        script.async = true;
-        script.onload = () => setCaptchaReady(true);
-        document.body.appendChild(script);
-    }, []);
+
+        let cancelled = false;
+
+        const handleLoaded = () => {
+            if (!cancelled) {
+                setCaptchaReady(true);
+            }
+        };
+
+        const handleError = () => {
+            if (!cancelled) {
+                setError("Не удалось загрузить капчу, попробуйте снова");
+            }
+        };
+
+        window.hcaptchaOnLoad = handleLoaded;
+
+        const existingScript = document.querySelector('script[src^="https://js.hcaptcha.com/1/api.js"]');
+        const script = existingScript || document.createElement("script");
+
+        if (!existingScript) {
+            script.src = "https://js.hcaptcha.com/1/api.js?render=explicit&onload=hcaptchaOnLoad";
+            script.async = true;
+            document.body.appendChild(script);
+        }
+
+        script.addEventListener("load", handleLoaded);
+        script.addEventListener("error", handleError);
+
+        return () => {
+            cancelled = true;
+            script.removeEventListener("load", handleLoaded);
+            script.removeEventListener("error", handleError);
+            delete window.hcaptchaOnLoad;
+        };
+    }, [captchaEnabled]);
 
     useEffect(() => {
         if (!captchaEnabled || !captchaReady || !captchaRef.current || !window.hcaptcha || widgetId.current !== null) return;
         widgetId.current = window.hcaptcha.render(captchaRef.current, {
-            sitekey: siteKey,
+            sitekey: resolvedSiteKey,
             callback: (token) => setCaptchaToken(token),
             "expired-callback": () => setCaptchaToken(""),
         });
-    }, [captchaEnabled, captchaReady, siteKey]);
+    }, [captchaEnabled, captchaReady, resolvedSiteKey]);
 
     const resetCaptcha = () => {
         if (widgetId.current !== null && window.hcaptcha) {
