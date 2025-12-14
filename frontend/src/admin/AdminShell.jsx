@@ -2,7 +2,8 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { getUser, logout } from "../utils/auth";
 
-const apiHost = (import.meta.env.VITE_API_URL || "http://localhost:4000").replace(/\/api$/, "");
+const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : "";
+const apiHost = (import.meta.env.VITE_API_URL || `${runtimeOrigin}/api`).replace(/\/api$/, "");
 
 export default function AdminShell() {
     const location = useLocation();
