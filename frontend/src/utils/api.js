@@ -19,6 +19,28 @@ const api = axios.create({
     withCredentials: false,
 });
 
+const stripApiPrefix = (url = "") => {
+    if (!url) return url;
+
+    // Remove any number of leading "/api" segments to avoid double-prefixing
+    // when the baseURL already ends with "/api".
+    let stripped = url;
+    while (
+        stripped === "api" ||
+        stripped === "/api" ||
+        stripped.startsWith("api/") ||
+        stripped.startsWith("/api/")
+    ) {
+        stripped = stripped.replace(/^\/?api\/?/, "");
+    }
+
+    return stripped.startsWith("/") ? stripped : `/${stripped}`;
+};
+
+export const normalizeApiPath = (url = "") => (
+    API_BASE_URL.endsWith("/api") ? stripApiPrefix(url) : url
+);
+
 /**
  * ===============================
  * JWT INTERCEPTOR
@@ -29,6 +51,11 @@ api.interceptors.request.use(
         const token = localStorage.getItem("token");
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+        }
+
+        // Prevent double /api/api prefix when baseURL already contains "/api"
+        if (API_BASE_URL.endsWith("/api")) {
+            config.url = stripApiPrefix(config.url);
         }
         return config;
     },
@@ -81,12 +108,7 @@ export async function apiFetch(url, options = {}) {
             return rawBody;
         })();
 
-        const normalizedUrl = (() => {
-            if (API_BASE_URL.endsWith("/api") && url.startsWith("/api")) {
-                return url.slice(4);
-            }
-            return url;
-        })();
+        const normalizedUrl = API_BASE_URL.endsWith("/api") ? stripApiPrefix(url) : url;
 
         const headers = { ...(options.headers || {}) };
         if (!isFormData && rawBody && typeof data !== "string") {
