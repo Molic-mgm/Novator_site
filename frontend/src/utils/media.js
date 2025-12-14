@@ -1,10 +1,11 @@
 import { API_BASE_URL } from "./api";
 
-const mediaBaseRaw = (import.meta.env.VITE_MEDIA_URL || API_BASE_URL || "http://localhost:4000")
+const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : "";
+const mediaBaseRaw = (import.meta.env.VITE_MEDIA_URL || API_BASE_URL || runtimeOrigin)
     .replace(/\/$/, "")
     .replace(/\/api$/, "");
 
-export const MEDIA_BASE_URL = mediaBaseRaw;
+export const MEDIA_BASE_URL = mediaBaseRaw || runtimeOrigin;
 
 export function toAbsoluteUrl(url) {
     if (!url) return "";
