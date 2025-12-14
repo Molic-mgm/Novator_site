@@ -1,6 +1,7 @@
 import express from "express";
 import Content from "../models/Content.js";
 import { requireAuth } from "../middleware/auth.js";
+import { DEFAULT_CONTACTS } from "../utils/defaultContacts.js";
 
 const router = express.Router();
 
@@ -9,7 +10,8 @@ const router = express.Router();
  */
 router.get("/contacts", async (req, res) => {
     const content = await findOrCreateHome();
-    res.json({ contacts: content.contacts });
+    const contacts = mergeContacts(content.contacts);
+    res.json({ contacts });
 });
 
 /**
@@ -18,7 +20,7 @@ router.get("/contacts", async (req, res) => {
 router.put("/contacts", requireAuth, async (req, res) => {
     const content = await findOrCreateHome();
 
-    content.contacts = req.body;
+    content.contacts = mergeContacts(req.body || {});
     await content.save();
 
     res.json({ success: true });
@@ -42,7 +44,10 @@ router.get("/:slug", async (req, res) => {
         }
 
         const data = content.toObject();
-        const normalized = slug === "home" ? mergeAboutExperience(data) : data;
+        const normalized =
+            slug === "home"
+                ? { ...mergeAboutExperience(data), contacts: mergeContacts(data.contacts) }
+                : data;
 
         res.json(normalized);
     } catch (err) {
@@ -86,9 +91,26 @@ function mergeAboutExperience(value) {
     };
 }
 
+function mergeContacts(value = {}) {
+    return {
+        ...DEFAULT_CONTACTS,
+        ...(value || {}),
+        map: {
+            ...DEFAULT_CONTACTS.map,
+            ...((value || {}).map || {}),
+        },
+    };
+}
+
 async function findOrCreateHome() {
     const existing = await Content.findOne({ slug: "home" });
-    if (existing) return existing;
+    if (existing) {
+        if (!existing.contacts || Object.keys(existing.contacts || {}).length === 0) {
+            existing.contacts = DEFAULT_CONTACTS;
+            await existing.save();
+        }
+        return existing;
+    }
 
     const baseAbout = {
         title: "Наш опыт",
@@ -113,7 +135,7 @@ async function findOrCreateHome() {
             consentText:
                 "Я согласен(на) на обработку персональных данных в соответствии с Федеральным законом №152-ФЗ",
         },
-        contacts: {},
+        contacts: DEFAULT_CONTACTS,
     });
 
     return created;

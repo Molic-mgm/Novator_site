@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../utils/api";
+import { DEFAULT_CONTACTS, mergeContacts } from "../utils/contactDefaults";
 
 /**
  * CMS редактор контактов
@@ -8,22 +9,9 @@ import api from "../utils/api";
  *  PUT  /api/content/contacts
  */
 
-const DEFAULT_DATA = {
-    title: "Контакты",
-    phone: "",
-    email: "",
-    address: "",
-    vkUrl: "",
-    map: {
-        lat: 54.7348,
-        lng: 55.9579,
-        zoom: 11
-    }
-};
-
 export default function ContactsEditor() {
-    const [data, setData] = useState(DEFAULT_DATA);
-    const [initial, setInitial] = useState(DEFAULT_DATA);
+    const [data, setData] = useState(DEFAULT_CONTACTS);
+    const [initial, setInitial] = useState(DEFAULT_CONTACTS);
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -37,16 +25,7 @@ export default function ContactsEditor() {
         (async () => {
             try {
                 const res = await api.get("/api/content/contacts");
-                const contacts = res?.data?.contacts || {};
-
-                const merged = {
-                    ...DEFAULT_DATA,
-                    ...contacts,
-                    map: {
-                        ...DEFAULT_DATA.map,
-                        ...(contacts.map || {})
-                    }
-                };
+                const merged = mergeContacts(res?.data?.contacts);
 
                 if (!mounted) return;
                 setData(merged);

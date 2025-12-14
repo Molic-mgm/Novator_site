@@ -10,7 +10,13 @@ router.get("/public", (req, res) => {
     process.env.VITE_HCAPTCHA_SITEKEY ||
     "";
 
-  res.json({ hcaptchaSiteKey });
+  const hasSecret = Boolean(
+    process.env.HCAPTCHA_SECRET || process.env.HCAPTCHA_KEY || ""
+  );
+
+  const hcaptchaEnabled = Boolean(hcaptchaSiteKey && hasSecret);
+
+  res.json({ hcaptchaSiteKey, hcaptchaEnabled });
 });
 
 export default router;
