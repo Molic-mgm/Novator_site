@@ -1,10 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import api from "../utils/api";
 
 export default function Contacts() {
     const [content, setContent] = useState(null);
     const mapRef = useRef(null);
     const mapInited = useRef(false);
+
+    const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : "";
+    const siteUrl = useMemo(
+        () => import.meta.env.VITE_SITE_URL || runtimeOrigin || "",
+        [runtimeOrigin]
+    );
+    const yandexApiKey = import.meta.env.VITE_YMAPS_KEY || "47af1c93-55ca-429b-b161-acf6ee1fb9de";
 
     useEffect(() => {
         api.get("/api/content/home").then(res => setContent(res.data.contacts));
@@ -32,7 +39,7 @@ export default function Contacts() {
 
         const script = document.createElement("script");
         script.src =
-            "https://api-maps.yandex.ru/2.1/?apikey=47af1c93-55ca-429b-b161-acf6ee1fb9de&lang=ru_RU";
+            `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(yandexApiKey)}&lang=ru_RU`;
         script.onload = initMap;
         document.body.appendChild(script);
     };
@@ -117,7 +124,7 @@ export default function Contacts() {
                         "@context": "https://schema.org",
                         "@type": "Organization",
                         name: "Детский IT лагерь «Новатор»",
-                        url: "https://novator-camp.ru",
+                        url: siteUrl,
                         contactPoint: {
                             "@type": "ContactPoint",
                             telephone: content.phone,
