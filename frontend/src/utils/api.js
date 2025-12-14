@@ -5,8 +5,11 @@ import axios from "axios";
  * AXIOS INSTANCE
  * ===============================
  */
-export const API_BASE_RAW = import.meta.env.VITE_API_URL || "http://localhost:4000";
-export const API_BASE_URL = API_BASE_RAW.replace(/\/$/, "");
+const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : "";
+const fallbackApi = runtimeOrigin ? `${runtimeOrigin}/api` : "/api";
+
+export const API_BASE_RAW = (import.meta.env.VITE_API_URL || fallbackApi).replace(/\/$/, "");
+export const API_BASE_URL = API_BASE_RAW || fallbackApi;
 
 const api = axios.create({
     baseURL: API_BASE_URL,
