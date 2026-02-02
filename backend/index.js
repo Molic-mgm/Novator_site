@@ -19,10 +19,14 @@ import contentRoutes from "./routes/content.js";
 import teamRoutes from "./routes/team.js";
 import Shift from "./models/Shift.js";
 import Content from "./models/Content.js";
+import AuditLog from "./models/AuditLog.js";
 import galleryRoutes from "./routes/gallery.js";
 import { uploadDir as uploadDirName } from "./utils/upload.js";
 import configRoutes from "./routes/config.js";
 import { DEFAULT_CONTACTS } from "./utils/defaultContacts.js";
+import vacanciesRoutes from "./routes/vacancies.js";
+import uploadsRoutes from "./routes/uploads.js";
+import auditRoutes from "./routes/audit.js";
 
 dotenv.config();
 
@@ -54,6 +58,27 @@ app.use(
 
 app.use(express.json({ limit: "5mb" }));
 
+app.use((req, res, next) => {
+    res.on("finish", async () => {
+        try {
+            if (!req.user) return;
+            if (req.method === "GET") return;
+            await AuditLog.create({
+                userId: req.user.id || req.user._id || "",
+                email: req.user.email || "",
+                role: req.user.role || "",
+                method: req.method,
+                path: req.originalUrl,
+                status: res.statusCode,
+                payload: req.body || {},
+            });
+        } catch (err) {
+            console.error("Audit log error", err);
+        }
+    });
+    next();
+});
+
 const limiter = rateLimit({
     windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60000),
     max: Number(process.env.RATE_LIMIT_MAX || 120),
@@ -74,6 +99,9 @@ app.use("/api/content", contentRoutes);
 app.use("/api/team", teamRoutes);
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/config", configRoutes);
+app.use("/api/vacancies", vacanciesRoutes);
+app.use("/api/uploads", uploadsRoutes);
+app.use("/api/audit", auditRoutes);
 
 app.get("/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
@@ -159,17 +187,18 @@ async function start() {
             },
             about: baseAbout,
             experience: baseAbout,
-        itDirections: [],
-        bookingForm: {
-            title: "Анкета на бронирование путёвки в лагерь «Новатор»",
-            subtitle: "Выберите подходящую смену и заполните форму",
-            consentText:
-                "Я согласен(на) на обработку персональных данных в соответствии с Федеральным законом №152-ФЗ",
-        },
-        contacts: DEFAULT_CONTACTS,
-    });
-    console.log("✅ Default home content seeded");
-}
+            itDirections: [],
+            bookingForm: {
+                title: "Анкета на бронирование путёвки в лагерь «Новатор»",
+                subtitle: "Выберите подходящую смену и заполните форму",
+                consentText:
+                    "Я согласен(на) на обработку персональных данных в соответствии с Федеральным законом №152-ФЗ",
+            },
+            contacts: DEFAULT_CONTACTS,
+        });
+        console.log("✅ Default home content seeded");
+    }
+
 
     server = app
         .listen(PORT, () => console.log(`🚀 Backend on http://localhost:${PORT}`))

@@ -18,6 +18,9 @@ const GalleryAlbumSchema = new mongoose.Schema(
             default: "center center",
         },
         photos: [String],
+        videos: [String],
+        order: { type: Number, default: 0 },
+        isActive: { type: Boolean, default: true },
     },
     { timestamps: true }
 );

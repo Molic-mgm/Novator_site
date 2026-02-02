@@ -8,8 +8,15 @@ import { normalizeMediaFields, normalizeMediaUrl, resolveMediaHost } from "../ut
 const router = express.Router();
 const upload = createUploader("team");
 
+const parseBoolean = (value, fallback) => {
+    if (value === undefined) return fallback;
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") return value.toLowerCase() === "true";
+    return fallback;
+};
+
 router.get("/", async (req, res) => {
-    const members = await TeamMember.find().sort({ createdAt: 1 }).lean();
+    const members = await TeamMember.find().sort({ order: 1, createdAt: 1 }).lean();
 
     const normalized = members.map((m) =>
         normalizeMediaFields(
@@ -18,7 +25,7 @@ router.get("/", async (req, res) => {
                 photoFit: m.photoFit || "cover",
                 photoPosition: m.photoPosition || "center center",
             },
-            ["photoUrl"],
+            ["photoUrl", "videoUrl", "videoPosterUrl"],
             resolveMediaHost(req)
         )
     );
@@ -31,13 +38,18 @@ router.post("/", requireAuth, requireRole("admin", "manager"), upload.single("ph
         name: req.body.name,
         position: req.body.position,
         description: req.body.description,
+        longDescription: req.body.longDescription,
+        videoUrl: normalizeMediaUrl(req.body.videoUrl),
+        videoPosterUrl: normalizeMediaUrl(req.body.videoPosterUrl),
         photoFit: req.body.photoFit || "cover",
         photoPosition: req.body.photoPosition || "center center",
         photoUrl: req.file
             ? normalizeMediaUrl(`/${uploadDir}/${req.file.filename}`)
             : normalizeMediaUrl(req.body.photoUrl),
+        order: req.body.order !== undefined ? Number(req.body.order) : 0,
+        isActive: parseBoolean(req.body.isActive, true),
     });
-    res.json(normalizeMediaFields(created.toObject(), ["photoUrl"], resolveMediaHost(req)));
+    res.json(normalizeMediaFields(created.toObject(), ["photoUrl", "videoUrl", "videoPosterUrl"], resolveMediaHost(req)));
 });
 
 router.put("/:id", requireAuth, requireRole("admin", "manager"), upload.single("photo"), async (req, res) => {
@@ -47,6 +59,13 @@ router.put("/:id", requireAuth, requireRole("admin", "manager"), upload.single("
     updated.name = req.body.name ?? updated.name;
     updated.position = req.body.position ?? updated.position;
     updated.description = req.body.description ?? updated.description;
+    updated.longDescription = req.body.longDescription ?? updated.longDescription;
+    if (req.body.videoUrl !== undefined) updated.videoUrl = normalizeMediaUrl(req.body.videoUrl);
+    if (req.body.videoPosterUrl !== undefined) updated.videoPosterUrl = normalizeMediaUrl(req.body.videoPosterUrl);
+    if (req.body.order !== undefined) updated.order = Number(req.body.order);
+    if (req.body.isActive !== undefined) {
+        updated.isActive = parseBoolean(req.body.isActive, updated.isActive);
+    }
     updated.photoFit = req.body.photoFit ?? updated.photoFit;
     updated.photoPosition = req.body.photoPosition ?? updated.photoPosition;
     if (req.file) updated.photoUrl = normalizeMediaUrl(`/${uploadDir}/${req.file.filename}`);
@@ -54,7 +73,7 @@ router.put("/:id", requireAuth, requireRole("admin", "manager"), upload.single("
 
     await updated.save();
     if (!updated) return res.status(404).json({ message: "Team member not found" });
-    res.json(normalizeMediaFields(updated.toObject(), ["photoUrl"], resolveMediaHost(req)));
+    res.json(normalizeMediaFields(updated.toObject(), ["photoUrl", "videoUrl", "videoPosterUrl"], resolveMediaHost(req)));
 });
 
 router.delete("/:id", requireAuth, requireRole("admin", "manager"), async (req, res) => {

@@ -37,6 +37,7 @@ const BookingSchema = new mongoose.Schema(
             enum: ["active", "archived"],
             default: "active",
         },
+        processed: { type: Boolean, default: false },
     },
     { timestamps: true }
 );

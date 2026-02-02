@@ -4,13 +4,19 @@ import { toAbsoluteUrl } from "../utils/media";
 
 export default function Team() {
     const [members, setMembers] = useState([]);
+    const [header, setHeader] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         let mounted = true;
-        apiFetch("/api/team")
-            .then((data) => {
-                if (mounted) setMembers(data || []);
+        Promise.all([apiFetch("/api/team"), apiFetch("/api/content/site")])
+            .then(([data, site]) => {
+                if (!mounted) return;
+                const visible = (data || [])
+                    .filter((item) => item.isActive !== false)
+                    .sort((a, b) => (a.order || 0) - (b.order || 0));
+                setMembers(visible);
+                setHeader(site?.pageHeaders?.team || null);
             })
             .finally(() => mounted && setLoading(false));
         return () => {
@@ -18,10 +24,29 @@ export default function Team() {
         };
     }, []);
 
+    const handleVideoEnter = (event) => {
+        const video = event.currentTarget;
+        video.play().catch(() => {});
+    };
+
+    const handleVideoLeave = (event) => {
+        const video = event.currentTarget;
+        video.pause();
+        video.currentTime = 0;
+    };
+
     return (
-        <div className="pt-24 pb-16 bg-white min-h-screen">
+        <div className="pt-24 pb-16 min-h-screen">
             <div className="max-w-5xl mx-auto px-4">
-                <h1 className="text-3xl font-extrabold mb-6">Команда</h1>
+                <div className="mb-6 animate-fade-up space-y-2">
+                    <div className="text-sm uppercase tracking-[0.2em] text-blue-600 font-bold">
+                        {header?.eyebrow || "Команда"}
+                    </div>
+                    <h1 className="text-3xl font-extrabold">{header?.title || "Команда"}</h1>
+                    {header?.subtitle && (
+                        <p className="text-gray-600 max-w-2xl">{header.subtitle}</p>
+                    )}
+                </div>
                 {loading ? (
                     <div>Загрузка…</div>
                 ) : members.length === 0 ? (
@@ -29,7 +54,7 @@ export default function Team() {
                 ) : (
                     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         {members.map((m) => (
-                            <div key={m._id} className="rounded-2xl border p-5 shadow-sm">
+                            <div key={m._id} className="card-surface p-5 space-y-3 hover-lift">
                                 {m.photoUrl && (
                                     <div
                                         className="w-full rounded-xl mb-4 border bg-slate-50 overflow-hidden"
@@ -49,6 +74,22 @@ export default function Team() {
                                 )}
                                 {m.description && (
                                     <p className="text-sm text-gray-600 mt-3 whitespace-pre-line">{m.description}</p>
+                                )}
+                                {m.longDescription && (
+                                    <p className="text-sm text-gray-600 whitespace-pre-line">{m.longDescription}</p>
+                                )}
+                                {m.videoUrl && (
+                                    <video
+                                        className="w-full rounded-xl border"
+                                        muted
+                                        playsInline
+                                        preload="metadata"
+                                        onMouseEnter={handleVideoEnter}
+                                        onMouseLeave={handleVideoLeave}
+                                        poster={m.videoPosterUrl ? toAbsoluteUrl(m.videoPosterUrl) : undefined}
+                                    >
+                                        <source src={toAbsoluteUrl(m.videoUrl)} />
+                                    </video>
                                 )}
                             </div>
                         ))}

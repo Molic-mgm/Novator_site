@@ -18,6 +18,11 @@ const TeamMemberSchema = new mongoose.Schema(
             default: "center center",
         },
         description: { type: String, default: "" },
+        longDescription: { type: String, default: "" },
+        videoUrl: { type: String, default: "" },
+        videoPosterUrl: { type: String, default: "" },
+        order: { type: Number, default: 0 },
+        isActive: { type: Boolean, default: true },
     },
     { timestamps: true }
 );
