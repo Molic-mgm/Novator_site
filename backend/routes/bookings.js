@@ -87,7 +87,12 @@ router.put(
     "/:id",
     requireAuth,
     requireRole("admin", "manager"),
-    [...bookingValidators, body("agree").optional().isBoolean(), body("status").optional().isIn(["active", "archived"])],
+    [
+        ...bookingValidators,
+        body("agree").optional().isBoolean(),
+        body("status").optional().isIn(["active", "archived"]),
+        body("processed").optional().isBoolean(),
+    ],
     validate,
     async (req, res) => {
         const { shiftId, shiftTitle: shiftTitleRaw } = req.body;
@@ -121,6 +126,7 @@ router.put(
         booking.transfer = req.body.transfer;
         if (typeof req.body.agree === "boolean") booking.agree = req.body.agree;
         if (req.body.status) booking.status = req.body.status;
+        if (typeof req.body.processed === "boolean") booking.processed = req.body.processed;
 
         await booking.save();
 
@@ -210,7 +216,8 @@ router.get("/export", requireAuth, requireRole("admin", "manager"), async (req, 
         paymentType: b.paymentType,
         allergies: b.allergies,
         transfer: b.transfer,
-        agree: b.agree
+        agree: b.agree,
+        processed: b.processed
     }));
 
     if (String(format).toLowerCase() === "csv") {
@@ -296,6 +303,7 @@ router.get("/export/excel", async (req, res) => {
         "Аллергии": b.allergies,
         "Трансфер": b.transfer,
         "Статус": b.status,
+        "Обработано": b.processed ? "Да" : "Нет",
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(rows);

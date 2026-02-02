@@ -8,6 +8,8 @@ const EMPTY = {
     cover: null,
     coverFit: "contain",
     coverPosition: "center center",
+    order: 0,
+    isActive: true,
 };
 
 export default function GalleryAdmin() {
@@ -47,6 +49,8 @@ export default function GalleryAdmin() {
             fd.append("description", form.description);
             fd.append("coverFit", form.coverFit);
             fd.append("coverPosition", form.coverPosition);
+            fd.append("order", String(form.order || 0));
+            fd.append("isActive", form.isActive ? "true" : "false");
             if (form.cover) fd.append("cover", form.cover);
             await apiFetch("/api/gallery", { method: "POST", body: fd });
             setForm(EMPTY);
@@ -67,6 +71,8 @@ export default function GalleryAdmin() {
             if (coverFile) fd.append("cover", coverFile);
             fd.append("coverFit", album.coverFit || "contain");
             fd.append("coverPosition", album.coverPosition || "center center");
+            fd.append("order", String(album.order || 0));
+            fd.append("isActive", album.isActive ? "true" : "false");
             const updated = await apiFetch(`/api/gallery/${album._id}`, { method: "PATCH", body: fd });
             replaceAlbum(updated);
         } catch (e) {
@@ -104,8 +110,54 @@ export default function GalleryAdmin() {
         }
     };
 
+    const uploadVideos = async (id, files) => {
+        if (!files || files.length === 0) return;
+        setSaving(true);
+        try {
+            const fd = new FormData();
+            Array.from(files).forEach((file) => fd.append("videos", file));
+            const updated = await apiFetch(`/api/gallery/${id}/videos`, { method: "POST", body: fd });
+            replaceAlbum(updated);
+        } catch (e) {
+            alert(e.message || "Ошибка загрузки видео");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const updateLocal = (id, key, value) => {
         setAlbums((prev) => prev.map((a) => (a._id === id ? { ...a, [key]: value } : a)));
+    };
+
+    const moveItem = (albumId, field, from, to) => {
+        setAlbums((prev) =>
+            prev.map((album) => {
+                if (album._id !== albumId) return album;
+                const list = [...(album[field] || [])];
+                if (to < 0 || to >= list.length) return album;
+                const [item] = list.splice(from, 1);
+                list.splice(to, 0, item);
+                return { ...album, [field]: list };
+            })
+        );
+    };
+
+    const saveMediaOrder = async (album) => {
+        setSaving(true);
+        try {
+            const updated = await apiFetch(`/api/gallery/${album._id}`, {
+                method: "PATCH",
+                body: JSON.stringify({
+                    photos: album.photos || [],
+                    videos: album.videos || [],
+                }),
+            });
+            replaceAlbum(updated);
+        } catch (e) {
+            alert(e.message || "Ошибка сохранения порядка");
+        } finally {
+            setSaving(false);
+        }
     };
 
     const removePhoto = async (albumId, photoUrl) => {
@@ -119,6 +171,22 @@ export default function GalleryAdmin() {
             replaceAlbum(updated);
         } catch (e) {
             alert(e.message || "Ошибка удаления фото");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const removeVideo = async (albumId, videoUrl) => {
+        if (!confirm("Удалить видео?")) return;
+        setSaving(true);
+        try {
+            const updated = await apiFetch(`/api/gallery/${albumId}/videos`, {
+                method: "DELETE",
+                body: { videoUrl },
+            });
+            replaceAlbum(updated);
+        } catch (e) {
+            alert(e.message || "Ошибка удаления видео");
         } finally {
             setSaving(false);
         }
@@ -148,6 +216,21 @@ export default function GalleryAdmin() {
                         value={form.description}
                         onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                     />
+                    <input
+                        className="input"
+                        type="number"
+                        placeholder="Порядок"
+                        value={form.order}
+                        onChange={(e) => setForm((f) => ({ ...f, order: Number(e.target.value) }))}
+                    />
+                    <label className="inline-flex items-center gap-2 text-sm font-medium">
+                        <input
+                            type="checkbox"
+                            checked={form.isActive}
+                            onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                        />
+                        Показывать альбом
+                    </label>
                     <div>
                         <label className="text-xs font-bold text-slate-600">Обложка</label>
                         <input
@@ -215,6 +298,21 @@ export default function GalleryAdmin() {
                                         onChange={(e) => updateLocal(album._id, "description", e.target.value)}
                                         placeholder="Описание"
                                     />
+                                    <input
+                                        className="input"
+                                        type="number"
+                                        value={album.order || 0}
+                                        onChange={(e) => updateLocal(album._id, "order", Number(e.target.value))}
+                                        placeholder="Порядок"
+                                    />
+                                    <label className="inline-flex items-center gap-2 text-sm font-medium">
+                                        <input
+                                            type="checkbox"
+                                            checked={album.isActive !== false}
+                                            onChange={(e) => updateLocal(album._id, "isActive", e.target.checked)}
+                                        />
+                                        Показывать альбом
+                                    </label>
                                     <label className="block">
                                         <div className="text-xs font-bold text-slate-600">Отображение обложки</div>
                                         <select
@@ -268,6 +366,17 @@ export default function GalleryAdmin() {
                                         />
                                         <div className="text-xs text-slate-600">В альбоме {album.photos?.length || 0} фото.</div>
                                     </div>
+                                    <div className="space-y-2">
+                                        <div className="text-xs font-bold text-slate-600">Добавить видео</div>
+                                        <input
+                                            type="file"
+                                            multiple
+                                            accept="video/*"
+                                            className="input"
+                                            onChange={(e) => uploadVideos(album._id, e.target.files)}
+                                        />
+                                        <div className="text-xs text-slate-600">В альбоме {album.videos?.length || 0} видео.</div>
+                                    </div>
                                 </div>
 
                                 {!!album.photos?.length && (
@@ -283,6 +392,22 @@ export default function GalleryAdmin() {
                                                             className="w-full h-full object-cover"
                                                         />
                                                     </div>
+                                                    <div className="mt-2 flex items-center justify-between text-xs">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => moveItem(album._id, "photos", idx, idx - 1)}
+                                                            className="px-2 py-1 rounded border"
+                                                        >
+                                                            ↑
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => moveItem(album._id, "photos", idx, idx + 1)}
+                                                            className="px-2 py-1 rounded border"
+                                                        >
+                                                            ↓
+                                                        </button>
+                                                    </div>
                                                     <button
                                                         type="button"
                                                         onClick={() => removePhoto(album._id, photo)}
@@ -297,6 +422,47 @@ export default function GalleryAdmin() {
                                     </div>
                                 )}
 
+                                {!!album.videos?.length && (
+                                    <div className="space-y-2">
+                                        <div className="text-xs font-bold text-slate-600">Видео альбома</div>
+                                        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                            {album.videos.map((video, idx) => (
+                                                <div key={`${video}-${idx}`} className="space-y-2">
+                                                    <video
+                                                        src={toAbsoluteUrl(video)}
+                                                        controls
+                                                        className="w-full rounded-xl border bg-slate-50"
+                                                    />
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => moveItem(album._id, "videos", idx, idx - 1)}
+                                                            className="px-2 py-1 rounded border"
+                                                        >
+                                                            ↑
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => moveItem(album._id, "videos", idx, idx + 1)}
+                                                            className="px-2 py-1 rounded border"
+                                                        >
+                                                            ↓
+                                                        </button>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeVideo(album._id, video)}
+                                                        disabled={saving}
+                                                        className="w-full text-xs font-bold text-rose-600 border border-rose-100 rounded-lg py-1 hover:bg-rose-50 disabled:opacity-60"
+                                                    >
+                                                        Удалить видео
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => updateAlbum(album)}
@@ -304,6 +470,13 @@ export default function GalleryAdmin() {
                                         className="px-4 py-2 rounded-xl bg-brand-blue text-white font-bold disabled:opacity-60"
                                     >
                                         Сохранить
+                                    </button>
+                                    <button
+                                        onClick={() => saveMediaOrder(album)}
+                                        disabled={saving}
+                                        className="px-4 py-2 rounded-xl border font-bold"
+                                    >
+                                        Сохранить порядок
                                     </button>
                                     <a
                                         href={`/gallery/${album._id}`}

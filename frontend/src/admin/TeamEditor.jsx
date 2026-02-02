@@ -9,6 +9,11 @@ const EMPTY = {
     photoFit: "cover",
     photoPosition: "center center",
     description: "",
+    longDescription: "",
+    videoUrl: "",
+    videoPosterUrl: "",
+    order: 0,
+    isActive: true,
 };
 
 export default function TeamEditor() {
@@ -19,7 +24,11 @@ export default function TeamEditor() {
     const [error, setError] = useState("");
     const [saved, setSaved] = useState("");
     const [formFile, setFormFile] = useState(null);
+    const [formVideoFile, setFormVideoFile] = useState(null);
+    const [formPosterFile, setFormPosterFile] = useState(null);
     const [pendingFiles, setPendingFiles] = useState({});
+    const [pendingVideoFiles, setPendingVideoFiles] = useState({});
+    const [pendingPosterFiles, setPendingPosterFiles] = useState({});
 
     const load = async () => {
         setLoading(true);
@@ -41,6 +50,13 @@ export default function TeamEditor() {
         load().catch(() => {});
     }, []);
 
+    const uploadFile = async (file) => {
+        const fd = new FormData();
+        fd.append("file", file);
+        const response = await apiFetch("/api/uploads", { method: "POST", body: fd });
+        return response.url;
+    };
+
     const create = async () => {
         if (!form.name.trim()) return alert("Введите имя");
         if (!confirm("Добавить участника команды?")) return;
@@ -50,6 +66,15 @@ export default function TeamEditor() {
             fd.append("name", form.name);
             fd.append("position", form.position);
             fd.append("description", form.description);
+            fd.append("longDescription", form.longDescription);
+            let videoUrl = form.videoUrl;
+            let videoPosterUrl = form.videoPosterUrl;
+            if (formVideoFile) videoUrl = await uploadFile(formVideoFile);
+            if (formPosterFile) videoPosterUrl = await uploadFile(formPosterFile);
+            fd.append("videoUrl", videoUrl || "");
+            fd.append("videoPosterUrl", videoPosterUrl || "");
+            fd.append("order", String(form.order || 0));
+            fd.append("isActive", form.isActive ? "true" : "false");
             fd.append("photoFit", form.photoFit);
             fd.append("photoPosition", form.photoPosition);
             if (form.photoUrl) fd.append("photoUrl", form.photoUrl);
@@ -58,6 +83,8 @@ export default function TeamEditor() {
             await apiFetch("/api/team", { method: "POST", body: fd });
             setForm(EMPTY);
             setFormFile(null);
+            setFormVideoFile(null);
+            setFormPosterFile(null);
             setSaved("Участник добавлен");
             await load();
         } catch (e) {
@@ -75,10 +102,21 @@ export default function TeamEditor() {
         try {
             const fd = new FormData();
             const file = pendingFiles[member._id];
+            const pendingVideo = pendingVideoFiles[member._id];
+            const pendingPoster = pendingPosterFiles[member._id];
 
             fd.append("name", member.name || "");
             fd.append("position", member.position || "");
             fd.append("description", member.description || "");
+            fd.append("longDescription", member.longDescription || "");
+            let videoUrl = member.videoUrl || "";
+            let videoPosterUrl = member.videoPosterUrl || "";
+            if (pendingVideo) videoUrl = await uploadFile(pendingVideo);
+            if (pendingPoster) videoPosterUrl = await uploadFile(pendingPoster);
+            fd.append("videoUrl", videoUrl || "");
+            fd.append("videoPosterUrl", videoPosterUrl || "");
+            fd.append("order", String(member.order || 0));
+            fd.append("isActive", member.isActive ? "true" : "false");
             fd.append("photoFit", member.photoFit || "cover");
             fd.append("photoPosition", member.photoPosition || "center center");
 
@@ -87,6 +125,8 @@ export default function TeamEditor() {
 
             await apiFetch(`/api/team/${member._id}`, { method: "PUT", body: fd });
             setPendingFiles((prev) => ({ ...prev, [member._id]: null }));
+            setPendingVideoFiles((prev) => ({ ...prev, [member._id]: null }));
+            setPendingPosterFiles((prev) => ({ ...prev, [member._id]: null }));
             setSaved("Изменения сохранены");
             await load();
         } catch (e) {
@@ -150,6 +190,18 @@ export default function TeamEditor() {
                         value={form.photoUrl}
                         onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
                     />
+                    <input
+                        className="input"
+                        placeholder="Видео (URL)"
+                        value={form.videoUrl}
+                        onChange={(e) => setForm((f) => ({ ...f, videoUrl: e.target.value }))}
+                    />
+                    <input
+                        className="input"
+                        placeholder="Постер видео (URL)"
+                        value={form.videoPosterUrl}
+                        onChange={(e) => setForm((f) => ({ ...f, videoPosterUrl: e.target.value }))}
+                    />
                     <label className="block">
                         <div className="text-xs font-bold text-slate-600">Отображение фото</div>
                         <select
@@ -184,12 +236,53 @@ export default function TeamEditor() {
                             onChange={(e) => setFormFile(e.target.files?.[0] || null)}
                         />
                     </label>
+                    <label className="block">
+                        <div className="text-xs font-bold text-slate-600">Видео файл</div>
+                        <input
+                            type="file"
+                            accept="video/*"
+                            className="input mt-1"
+                            onChange={(e) => setFormVideoFile(e.target.files?.[0] || null)}
+                        />
+                    </label>
+                    <label className="block">
+                        <div className="text-xs font-bold text-slate-600">Постер видео</div>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className="input mt-1"
+                            onChange={(e) => setFormPosterFile(e.target.files?.[0] || null)}
+                        />
+                    </label>
+                    <label className="block">
+                        <div className="text-xs font-bold text-slate-600">Порядок</div>
+                        <input
+                            type="number"
+                            className="input mt-1"
+                            value={form.order}
+                            onChange={(e) => setForm((f) => ({ ...f, order: Number(e.target.value) }))}
+                        />
+                    </label>
                     <textarea
                         className="input min-h-[80px]"
                         placeholder="Описание"
                         value={form.description}
                         onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                     />
+                    <textarea
+                        className="input min-h-[80px]"
+                        placeholder="Подробное описание"
+                        value={form.longDescription}
+                        onChange={(e) => setForm((f) => ({ ...f, longDescription: e.target.value }))}
+                    />
+                    <label className="inline-flex items-center gap-2 text-sm font-medium">
+                        <input
+                            type="checkbox"
+                            checked={form.isActive}
+                            onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                        />
+                        Показывать на сайте
+                    </label>
                 </div>
                 <button
                     onClick={create}
@@ -231,6 +324,18 @@ export default function TeamEditor() {
                                             value={m.photoUrl || ""}
                                             onChange={(e) => updateLocal(m._id, "photoUrl", e.target.value)}
                                             placeholder="Фото (URL)"
+                                        />
+                                        <input
+                                            className="input"
+                                            value={m.videoUrl || ""}
+                                            onChange={(e) => updateLocal(m._id, "videoUrl", e.target.value)}
+                                            placeholder="Видео (URL)"
+                                        />
+                                        <input
+                                            className="input"
+                                            value={m.videoPosterUrl || ""}
+                                            onChange={(e) => updateLocal(m._id, "videoPosterUrl", e.target.value)}
+                                            placeholder="Постер видео (URL)"
                                         />
                                         <label className="block">
                                             <div className="text-xs font-bold text-slate-600">Отображение фото</div>
@@ -289,6 +394,40 @@ export default function TeamEditor() {
                                             {pendingFile && (
                                                 <div className="text-xs text-slate-600">Новый файл: {pendingFile.name}</div>
                                             )}
+                                            <label className="block text-xs text-slate-600">
+                                                Видео файл
+                                                <input
+                                                    type="file"
+                                                    accept="video/*"
+                                                    className="input mt-1"
+                                                    onChange={(e) =>
+                                                        setPendingVideoFiles((prev) => ({
+                                                            ...prev,
+                                                            [m._id]: e.target.files?.[0] || null,
+                                                        }))
+                                                    }
+                                                />
+                                            </label>
+                                            {pendingVideoFiles[m._id] && (
+                                                <div className="text-xs text-slate-600">Видео: {pendingVideoFiles[m._id]?.name}</div>
+                                            )}
+                                            <label className="block text-xs text-slate-600">
+                                                Постер видео
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="input mt-1"
+                                                    onChange={(e) =>
+                                                        setPendingPosterFiles((prev) => ({
+                                                            ...prev,
+                                                            [m._id]: e.target.files?.[0] || null,
+                                                        }))
+                                                    }
+                                                />
+                                            </label>
+                                            {pendingPosterFiles[m._id] && (
+                                                <div className="text-xs text-slate-600">Постер: {pendingPosterFiles[m._id]?.name}</div>
+                                            )}
                                         </div>
                                         <textarea
                                             className="input min-h-[80px]"
@@ -296,6 +435,29 @@ export default function TeamEditor() {
                                             onChange={(e) => updateLocal(m._id, "description", e.target.value)}
                                             placeholder="Описание"
                                         />
+                                        <textarea
+                                            className="input min-h-[80px]"
+                                            value={m.longDescription || ""}
+                                            onChange={(e) => updateLocal(m._id, "longDescription", e.target.value)}
+                                            placeholder="Подробное описание"
+                                        />
+                                        <label className="block">
+                                            <div className="text-xs font-bold text-slate-600">Порядок</div>
+                                            <input
+                                                type="number"
+                                                className="input mt-1"
+                                                value={m.order || 0}
+                                                onChange={(e) => updateLocal(m._id, "order", Number(e.target.value))}
+                                            />
+                                        </label>
+                                        <label className="inline-flex items-center gap-2 text-sm font-medium">
+                                            <input
+                                                type="checkbox"
+                                                checked={m.isActive !== false}
+                                                onChange={(e) => updateLocal(m._id, "isActive", e.target.checked)}
+                                            />
+                                            Показывать на сайте
+                                        </label>
                                     </div>
                                     <div className="flex gap-3">
                                         <button

@@ -124,6 +124,7 @@ export default function BookingsAdmin() {
                     transfer: editing.transfer,
                     agree: editing.agree ?? true,
                     status: editing.status,
+                    processed: editing.processed ?? false,
                 })
             });
             setEditing(null);
@@ -146,7 +147,8 @@ export default function BookingsAdmin() {
         if (to) params.set("to", to);
 
         try {
-            const response = await api.get(normalizeApiPath("/api/bookings/export/excel"), {
+            params.set("format", "xlsx");
+            const response = await api.get(normalizeApiPath("/api/bookings/export"), {
                 params,
                 responseType: "blob",
                 headers: {
@@ -274,6 +276,7 @@ export default function BookingsAdmin() {
                                 <th className="p-3">Телефон</th>
                                 <th className="p-3">Оплата</th>
                                 <th className="p-3">Статус</th>
+                                <th className="p-3">Обработано</th>
                                 <th className="p-3">Действия</th>
                             </tr>
                         </thead>
@@ -299,6 +302,7 @@ export default function BookingsAdmin() {
                                         {b.paymentType === "full" ? "Полная оплата" : "Сертификат"}
                                     </td>
                                     <td className={`${wideCell} max-w-[160px]`} title={b.status === "archived" ? "Архив" : "Активна"}>{b.status === "archived" ? "Архив" : "Активна"}</td>
+                                    <td className={`${wideCell} max-w-[160px]`}>{b.processed ? "Да" : "Нет"}</td>
                                     <td className="p-3 space-x-2 whitespace-nowrap">
                                         {!canManage ? (
                                             <span className="text-slate-400">—</span>
@@ -326,7 +330,7 @@ export default function BookingsAdmin() {
                             ))}
                             {items.length === 0 && (
                                 <tr>
-                                    <td className="p-6 text-slate-600" colSpan={canManage ? 10 : 9}>
+                                    <td className="p-6 text-slate-600" colSpan={canManage ? 11 : 10}>
                                         Ничего не найдено.
                                     </td>
                                 </tr>
@@ -394,6 +398,17 @@ export default function BookingsAdmin() {
                                     <option value="active">Активна</option>
                                     <option value="archived">Архив</option>
                                 </select>
+                            </label>
+                            <label className="block text-sm font-semibold text-slate-700">
+                                Обработано
+                                <div className="mt-2 flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={!!editing.processed}
+                                        onChange={(e) => updateField("processed", e.target.checked)}
+                                    />
+                                    <span className="text-sm text-slate-600">Отметить как обработанную</span>
+                                </div>
                             </label>
                         </div>
 

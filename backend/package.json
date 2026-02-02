@@ -9,7 +9,8 @@
         "start": "node index.js",
         "create-admin": "node scripts/create-admin.js",
         "seed-content": "node scripts/seed-content.js",
-        "seed:home": "node scripts/seed-home.js"
+        "seed:home": "node scripts/seed-home.js",
+        "test": "echo \"No backend tests configured\""
     },
     "dependencies": {
         "bcryptjs": "^2.4.3",

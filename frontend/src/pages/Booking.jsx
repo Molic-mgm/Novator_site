@@ -21,8 +21,11 @@ export default function Booking() {
         (async () => {
             try {
                 const data = await apiFetch("/api/shifts");
-                setShifts(data);
-                setSelectedShiftId(data[0]?._id || "");
+                const visible = (data || [])
+                    .filter((item) => item.isActive !== false && item.isArchived !== true)
+                    .sort((a, b) => (a.order || 0) - (b.order || 0));
+                setShifts(visible);
+                setSelectedShiftId(visible[0]?._id || "");
             } catch (e) {
                 setError(e.message || "Не удалось загрузить смены");
             } finally {

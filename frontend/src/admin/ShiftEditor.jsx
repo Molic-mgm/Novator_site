@@ -4,8 +4,21 @@ import { toAbsoluteUrl } from "../utils/media";
 
 export default function ShiftEditor() {
     const [items, setItems] = useState([]);
-    const [form, setForm] = useState({ title: "", dates: "", price: "", description: "", imageUrl: "", imageFit: "cover", imagePosition: "center center" });
+    const [form, setForm] = useState({
+        title: "",
+        dates: "",
+        price: "",
+        description: "",
+        imageUrl: "",
+        imageFit: "cover",
+        imagePosition: "center center",
+        gallery: [],
+        order: 0,
+        isActive: true,
+        isArchived: false,
+    });
     const [formFile, setFormFile] = useState(null);
+    const [formGalleryFile, setFormGalleryFile] = useState(null);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const [saved, setSaved] = useState("");
@@ -19,7 +32,14 @@ export default function ShiftEditor() {
         setError("");
         setSaved("");
         try {
-            const created = await apiFetch("/api/shifts", { method: "POST", body: JSON.stringify(form) });
+            let payload = { ...form };
+            if (formGalleryFile) {
+                const fd = new FormData();
+                fd.append("file", formGalleryFile);
+                const uploaded = await apiFetch("/api/uploads", { method: "POST", body: fd });
+                payload = { ...payload, gallery: [...(payload.gallery || []), uploaded.url] };
+            }
+            const created = await apiFetch("/api/shifts", { method: "POST", body: JSON.stringify(payload) });
             if (formFile) {
                 const fd = new FormData();
                 fd.append("image", formFile);
@@ -27,8 +47,21 @@ export default function ShiftEditor() {
                 fd.append("imagePosition", form.imagePosition);
                 await apiFetch(`/api/shifts/${created._id}/image`, { method: "POST", body: fd });
             }
-            setForm({ title: "", dates: "", price: "", description: "", imageUrl: "", imageFit: "cover", imagePosition: "center center" });
+            setForm({
+                title: "",
+                dates: "",
+                price: "",
+                description: "",
+                imageUrl: "",
+                imageFit: "cover",
+                imagePosition: "center center",
+                gallery: [],
+                order: 0,
+                isActive: true,
+                isArchived: false,
+            });
             setFormFile(null);
+            setFormGalleryFile(null);
             setSaved("Новая смена сохранена");
             await load();
         } catch (e) {
@@ -52,6 +85,10 @@ export default function ShiftEditor() {
                 imageUrl: shift.imageUrl,
                 imageFit: shift.imageFit,
                 imagePosition: shift.imagePosition,
+                gallery: shift.gallery || [],
+                order: shift.order || 0,
+                isActive: shift.isActive !== false,
+                isArchived: shift.isArchived === true,
             }) });
             setSaved("Изменения сохранены");
             await load();
@@ -79,6 +116,30 @@ export default function ShiftEditor() {
         } catch (e) {
             console.error(e);
             setError(e.message || "Не удалось обновить фото");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const uploadGallery = async (id, file) => {
+        if (!file) return;
+        setSaving(true);
+        setError("");
+        setSaved("");
+        try {
+            const fd = new FormData();
+            fd.append("file", file);
+            const uploaded = await apiFetch("/api/uploads", { method: "POST", body: fd });
+            const shift = items.find((item) => item._id === id);
+            if (!shift) return;
+            await apiFetch(`/api/shifts/${id}`, {
+                method: "PATCH",
+                body: JSON.stringify({ gallery: [...(shift.gallery || []), uploaded.url] }),
+            });
+            setSaved("Галерея обновлена");
+            await load();
+        } catch (e) {
+            setError(e.message || "Не удалось загрузить файл");
         } finally {
             setSaving(false);
         }
@@ -125,6 +186,35 @@ export default function ShiftEditor() {
                         value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
                     <input className="px-3 py-2 rounded-2xl border" placeholder="Фото (URL)"
                         value={form.imageUrl} onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))} />
+                    <textarea
+                        className="px-3 py-2 rounded-2xl border min-h-[90px]"
+                        placeholder="Галерея (по одному URL в строке)"
+                        value={(form.gallery || []).join("\n")}
+                        onChange={(e) => setForm((f) => ({ ...f, gallery: e.target.value.split("\n").map((v) => v.trim()).filter(Boolean) }))}
+                    />
+                    <input
+                        type="number"
+                        className="px-3 py-2 rounded-2xl border"
+                        placeholder="Порядок"
+                        value={form.order}
+                        onChange={(e) => setForm((f) => ({ ...f, order: Number(e.target.value) }))}
+                    />
+                    <label className="inline-flex items-center gap-2 text-sm font-medium">
+                        <input
+                            type="checkbox"
+                            checked={form.isActive}
+                            onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                        />
+                        Активна
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-sm font-medium">
+                        <input
+                            type="checkbox"
+                            checked={form.isArchived}
+                            onChange={(e) => setForm((f) => ({ ...f, isArchived: e.target.checked }))}
+                        />
+                        Архивная
+                    </label>
                     <label className="block">
                         <div className="text-xs font-bold text-slate-600">Как показывать фото</div>
                         <select
@@ -159,6 +249,15 @@ export default function ShiftEditor() {
                             onChange={(e) => setFormFile(e.target.files?.[0] || null)}
                         />
                     </label>
+                    <label className="block">
+                        <div className="text-xs font-bold text-slate-600">Файл для галереи</div>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className="mt-2"
+                            onChange={(e) => setFormGalleryFile(e.target.files?.[0] || null)}
+                        />
+                    </label>
                 </div>
                 <div className="flex items-center gap-4 mt-4">
                     <button
@@ -184,6 +283,35 @@ export default function ShiftEditor() {
                                     <input className="px-3 py-2 rounded-2xl border w-full" value={s.price} onChange={(e) => updateLocal(s._id, "price", e.target.value)} />
                                     <input className="px-3 py-2 rounded-2xl border w-full" value={s.description || ""} onChange={(e) => updateLocal(s._id, "description", e.target.value)} />
                                     <input className="px-3 py-2 rounded-2xl border w-full" value={s.imageUrl || ""} onChange={(e) => updateLocal(s._id, "imageUrl", e.target.value)} placeholder="Фото (URL)" />
+                                    <textarea
+                                        className="px-3 py-2 rounded-2xl border min-h-[90px] w-full"
+                                        value={(s.gallery || []).join("\n")}
+                                        onChange={(e) => updateLocal(s._id, "gallery", e.target.value.split("\n").map((v) => v.trim()).filter(Boolean))}
+                                        placeholder="Галерея (по одному URL в строке)"
+                                    />
+                                    <input
+                                        type="number"
+                                        className="px-3 py-2 rounded-2xl border w-full"
+                                        value={s.order || 0}
+                                        onChange={(e) => updateLocal(s._id, "order", Number(e.target.value))}
+                                        placeholder="Порядок"
+                                    />
+                                    <label className="inline-flex items-center gap-2 text-sm font-medium">
+                                        <input
+                                            type="checkbox"
+                                            checked={s.isActive !== false}
+                                            onChange={(e) => updateLocal(s._id, "isActive", e.target.checked)}
+                                        />
+                                        Активна
+                                    </label>
+                                    <label className="inline-flex items-center gap-2 text-sm font-medium">
+                                        <input
+                                            type="checkbox"
+                                            checked={s.isArchived === true}
+                                            onChange={(e) => updateLocal(s._id, "isArchived", e.target.checked)}
+                                        />
+                                        Архивная
+                                    </label>
                                     <label className="block">
                                         <div className="text-xs font-bold text-slate-600">Как показывать фото</div>
                                         <select
@@ -224,6 +352,15 @@ export default function ShiftEditor() {
                                         accept="image/*"
                                         onChange={(e) => uploadImage(s._id, e.target.files?.[0], s)}
                                     />
+                                    <label className="block text-xs text-slate-600">
+                                        Добавить фото в галерею смены
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="mt-1"
+                                            onChange={(e) => uploadGallery(s._id, e.target.files?.[0])}
+                                        />
+                                    </label>
                                 </div>
                             </div>
                             <div className="flex gap-3 items-center">

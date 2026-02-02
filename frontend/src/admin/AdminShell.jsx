@@ -93,6 +93,12 @@ export default function AdminShell() {
                             >
                                 Контент (Home)
                             </NavItem>
+                            <NavItem
+                                to="/admin/site"
+                                active={isActive("/admin/site")}
+                            >
+                                Структура сайта
+                            </NavItem>
 
                             <NavItem
                                 to="/admin/contacts"
@@ -115,6 +121,14 @@ export default function AdminShell() {
                                     Альбомы
                                 </NavItem>
                             )}
+                            {can(["admin", "manager"]) && (
+                                <NavItem
+                                    to="/admin/vacancies"
+                                    active={isActive("/admin/vacancies")}
+                                >
+                                    Вакансии
+                                </NavItem>
+                            )}
                         </>
                     )}
 
@@ -128,12 +142,20 @@ export default function AdminShell() {
                     )}
 
                     {can(["admin"]) && (
-                        <NavItem
-                            to="/admin/users"
-                            active={isActive("/admin/users")}
-                        >
-                            Пользователи
-                        </NavItem>
+                        <>
+                            <NavItem
+                                to="/admin/users"
+                                active={isActive("/admin/users")}
+                            >
+                                Пользователи
+                            </NavItem>
+                            <NavItem
+                                to="/admin/audit"
+                                active={isActive("/admin/audit")}
+                            >
+                                Лог действий
+                            </NavItem>
+                        </>
                     )}
 
                     <div className="pt-4 mt-6 border-t border-white/10">

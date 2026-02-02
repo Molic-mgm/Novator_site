@@ -19,6 +19,9 @@ const schema = new mongoose.Schema(
             ],
             default: "center center",
         },
+        gallery: [{ type: String }],
+        order: { type: Number, default: 0 },
+        isArchived: { type: Boolean, default: false },
         isActive: { type: Boolean, default: true }
     },
     { timestamps: true }

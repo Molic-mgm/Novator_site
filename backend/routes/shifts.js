@@ -12,7 +12,7 @@ const router = express.Router();
 const upload = createUploader("shift");
 
 router.get("/", async (req, res) => {
-    const items = await Shift.find().sort({ createdAt: -1 }).lean();
+    const items = await Shift.find().sort({ order: 1, createdAt: -1 }).lean();
     const mediaHost = resolveMediaHost(req);
 
     const normalized = items.map((s) =>
@@ -22,7 +22,7 @@ router.get("/", async (req, res) => {
                 imageFit: s.imageFit || "cover",
                 imagePosition: s.imagePosition || "center center",
             },
-            ["imageUrl"],
+            ["imageUrl", "gallery"],
             mediaHost
         )
     );
@@ -41,6 +41,7 @@ router.post(
         body("description").optional().isString(),
         body("imageFit").optional().isString(),
         body("imagePosition").optional().isString(),
+        body("gallery").optional().isArray(),
     ],
     validate,
     async (req, res) => {
@@ -52,9 +53,12 @@ router.post(
             imageUrl: normalizeMediaUrl(req.body.imageUrl),
             imageFit: req.body.imageFit || "cover",
             imagePosition: req.body.imagePosition || "center center",
+            gallery: (req.body.gallery || []).map((item) => normalizeMediaUrl(item)),
+            order: req.body.order || 0,
+            isArchived: req.body.isArchived === true,
             isActive: req.body.isActive !== false,
         });
-        res.json(normalizeMediaFields(s.toObject(), ["imageUrl"], resolveMediaHost(req)));
+        res.json(normalizeMediaFields(s.toObject(), ["imageUrl", "gallery"], resolveMediaHost(req)));
     }
 );
 
@@ -67,10 +71,13 @@ router.patch(
         if (req.body.imageFit) payload.imageFit = req.body.imageFit;
         if (req.body.imagePosition) payload.imagePosition = req.body.imagePosition;
         if (payload.imageUrl) payload.imageUrl = normalizeMediaUrl(payload.imageUrl);
+        if (Array.isArray(payload.gallery)) {
+            payload.gallery = payload.gallery.map((item) => normalizeMediaUrl(item));
+        }
 
         const s = await Shift.findByIdAndUpdate(req.params.id, payload, { new: true });
         if (!s) return res.status(404).json({ message: "Not found" });
-        res.json(normalizeMediaFields(s.toObject(), ["imageUrl"], resolveMediaHost(req)));
+        res.json(normalizeMediaFields(s.toObject(), ["imageUrl", "gallery"], resolveMediaHost(req)));
     }
 );
 
@@ -99,7 +106,7 @@ router.post(
         s.imageFit = req.body.imageFit || s.imageFit;
         s.imagePosition = req.body.imagePosition || s.imagePosition;
         await s.save();
-        res.json(normalizeMediaFields(s.toObject(), ["imageUrl"], resolveMediaHost(req)));
+        res.json(normalizeMediaFields(s.toObject(), ["imageUrl", "gallery"], resolveMediaHost(req)));
     }
 );
 
